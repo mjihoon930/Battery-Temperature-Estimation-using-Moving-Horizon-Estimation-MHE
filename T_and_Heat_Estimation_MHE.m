@@ -21,7 +21,6 @@ clc
 addpath('/Users/moonjihoon/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/Research/Code/Code/Rsc Estimation with MHE/casadi-3')
  
 import casadi.*
-import casadi.*
 
 dt = 0.1; %[s]
 N_MHE = 10; % Estimation horizon
