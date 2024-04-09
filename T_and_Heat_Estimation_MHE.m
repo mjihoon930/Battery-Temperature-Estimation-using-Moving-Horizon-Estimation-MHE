@@ -11,7 +11,49 @@
 clear all
 close all
 clc
+%% Input Profile
+[file, path] = uigetfile('*.csv', ' Please choose file');
+filename = [path, file];
+Data_table = readtable(filename);
+%% Extract Data
+time1 = Data_table(:,1).Time_s_;
+[Index,~]=find((time1./3600)>0);
+time1 = Data_table(Index,1).Time_s_;
+time1=time1-time1(1);
+curr1 = Data_table(Index,2).Current_mA_;
+curr1=curr1./1000; % Amp
+volt1 = Data_table(Index,3).Voltage_V_;
+Temp1=Data_table(Index,5).Temperature_C_;
+Cycle_no1=Data_table.CycleNumber;
+Cycle_no1=Cycle_no1(Index);
+Capacity=Data_table.Capacity_Ah_;
+Capacity=Capacity(Index);
+Q_Ah=Data_table.Q_Ah_;
+Q_Ah=Q_Ah(Index);
+Tamb=25.*ones(length(curr1),1);
+dt = 10;
+%% Resampling the data for equal intervals
+Te11=timeseries([volt1,curr1,Temp1, Tamb,Cycle_no1],time1-time1(1));
+t11=[time1(1)-time1(1):dt:time1(end)-time1(1)];
+dt=t11(2)-t11(1);
+Te2=resample(Te11,t11');
+R_Voltage1=Te2.Data(:,1);
+R_Current1=Te2.Data(:,2);
+R_Temper1=Te2.Data(:,3);
+R_Tamb1= Te2.Data(:,4);
+R_Cycle_no=Te2.Data(:,5);
+sim_tim = length(t11);
 
+%% System Dynamics
+load('theta.mat')
+% Continuous system
+A=[-theta(1),theta(2);0,0];
+B=[theta(1);0];
+C=[1,0];
+D=[0];
+Orig_sys=ss(A,B,C,D);
+% Discrete Model=
+Discrete_orig_Sys=c2d(Orig_sys,dt);
 %% Import CasADi Package
 
 % Window
@@ -52,12 +94,12 @@ State_noise_cov=10;
 State_cov=diag([State_noise_cov,State_noise_cov]).^2;
 
 %% State Dynamics
-Ad=[0.9999, 0.0006749;0,1];
-Bd=[0.0001289;0];
-Cd=[1,0];
-Dd=0;
+%Ad=[0.9999, 0.0006749;0,1];
+%Bd=[0.0001289;0];
+%Cd=[1,0];
+%Dd=0;
 
-rhs = Ad*[Ti; Q_h]+Bd*T_amb; % system r.h.s
+rhs = A*[Ti; Q_h]+B*T_amb; % system r.h.s
 f = Function('f',{states,controls},{rhs}); % State dynamics
 
 measurement_rhs = Ti;
