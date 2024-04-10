@@ -9,7 +9,7 @@
 %   https://www.me.psu.edu/mrl/
 
 clear all
-close all
+%close all
 clc
 
 %% Import CasADi Package
@@ -253,7 +253,7 @@ mheiter = 0;
 y_measurements = R_Temper1;
 u_cl = R_Tamb1;
 
-P_cov = diag([1 1]).^2;
+P_cov = diag([1 100]).^2;
 
 for k = 1: length(t11(1:3601)) - (N_MHE)
 
