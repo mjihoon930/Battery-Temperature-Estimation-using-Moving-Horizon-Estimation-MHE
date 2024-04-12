@@ -9,7 +9,7 @@
 %   https://www.me.psu.edu/mrl/
 
 clear all
-%close all
+close all
 clc
 
 %% Import CasADi Package
@@ -52,6 +52,10 @@ R_Temper1  = Te2.Data(:,3);
 R_Tamb1    = Te2.Data(:,4);
 R_Cycle_no = Te2.Data(:,5);
 sim_tim    = length(t11);
+
+load('Res_HPPC1.mat');
+p = polyfit(Res_HPPC(:,1), Res_HPPC(:,2), 1);
+R_Res = polyval(p, R_Cycle_no );
 
 %% Set Horizon Length
 N_MHE = 10;     
@@ -200,7 +204,7 @@ args   = struct;
 
 %% State Limits Variables
 Charge_current = 4.85;
-R0_1st_cycle   = 0.061;
+R0_1st_cycle   = 0.061;%Res_HPPC(:,1);
 
 Q_min          = 0;                                                         % Minimum Generated Heat
 Q_max          = 2*R0_1st_cycle*Charge_current^2;                           % Maximum Generated Heat
@@ -251,11 +255,13 @@ W0 = rand(N_MHE,n_disturbances);
 mheiter = 0;
 
 y_measurements = R_Temper1;
-u_cl = R_Tamb1;
+u_cl = awgn(R_Tamb1,50);% R_Tamb1;
 
-P_cov = diag([1 100]).^2;
+P_cov = diag([1 1]).^2;
 
-for k = 1: length(t11(1:3601)) - (N_MHE)
+data_length = 3601*1;
+
+for k = 1: length(t11(1:data_length)) - (N_MHE)
 
     mheiter = k
 
@@ -291,19 +297,18 @@ X_estimate = [x_ig'.*ones(N_MHE,n_states) ; X_estimate];
 
 figure
 subplot(311)
-plot(t11(1:3601)/3600,R_Current1(1:3601))
+plot(t11(1:data_length)/3600,R_Current1(1:data_length))
 ylabel('Current')
-xlim([0 10])
 
 subplot(312)
-plot(t11(1:3601)/3600,R_Temper1(1:3601))
+plot(t11(1:data_length)/3600,R_Temper1(1:data_length))
 hold on
-plot(t11(1:3601)/3600,X_estimate(:,1))
+plot(t11(1:data_length)/3600,X_estimate(:,1))
 ylabel('Temperature')
-xlim([0 10])
 
 subplot(313)
-plot(t11(1:3601)/3600,X_estimate(:,2))
+plot(t11(1:data_length)/3600,X_estimate(:,2))
+hold on;
+plot(t11(1:data_length)/3600, R_Res(1:data_length).*R_Current1(1:data_length).^2)
 ylabel('Heat Generation')
-xlim([0 10])
 set(gcf,'Color','White')
