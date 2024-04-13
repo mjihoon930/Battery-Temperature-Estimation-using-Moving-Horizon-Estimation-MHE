@@ -28,6 +28,9 @@ filename = [path, file];
 Data_table = readtable(filename);
 
 %% Extract Data
+
+Data_Type = 'Cold';
+
 time1      = Data_table(:,1).Time_s_;
 [Index,~]  = find((time1./3600)>0);
 time1      = Data_table(Index,1).Time_s_;
@@ -38,8 +41,49 @@ volt1      = Data_table(Index,3).Voltage_V_;
 Temp1      = Data_table(Index,4).Temperature_C_;
 Cycle_no1  = Data_table.CycleNumber;
 Cycle_no1  = Cycle_no1(Index);
-Tamb       = 25.*ones(length(curr1),1);
 dt         = 10;
+
+switch(Data_Type)
+
+    case 'Normal'
+
+        Tamb       = 25.*ones(length(curr1),1);
+
+        % State Limits Variables
+        Charge_current = 4.85;
+        R0_1st_cycle   = 0.061;%Res_HPPC(:,1);
+        
+        Q_min          = 0;                                                         % Minimum Generated Heat
+        Q_max          = 2*R0_1st_cycle*Charge_current^2;                           % Maximum Generated Heat
+        
+        T_min          = 10;                                                        % Minimum Surface Temperature
+        T_max          = 50;                                                        % Maximum Surface Temperature
+        
+        Tamb_min       = 20;                                                        % Minimum Ambient Temperature
+        Tamb_max       = 30;                                                        % Maximum Ambient Temperature
+
+        load('Res_HPPC1.mat');
+    
+    case 'Cold'
+
+        Tamb       = -3.*ones(length(curr1),1);
+
+        % State Limits Variables
+        Charge_current = 4.85;
+        R0_1st_cycle   = 0.0193021525964750;
+        
+        Q_min          = 0;                                                         % Minimum Generated Heat
+        Q_max          = 2;%2*R0_1st_cycle*Charge_current^2;                           % Maximum Generated Heat
+        
+        T_min          = -10;                                                        % Minimum Surface Temperature
+        T_max          = 10;                                                        % Maximum Surface Temperature
+        
+        Tamb_min       = -6;                                                        % Minimum Ambient Temperature
+        Tamb_max       = 0;                                                        % Maximum Ambient Temperature
+
+        load('Res_HPPC.mat');
+
+end
 
 %% Resampling the data for equal intervals
 Te11       = timeseries([volt1,curr1,Temp1, Tamb,Cycle_no1],time1-time1(1));
@@ -53,7 +97,6 @@ R_Tamb1    = Te2.Data(:,4);
 R_Cycle_no = Te2.Data(:,5);
 sim_tim    = length(t11);
 
-load('Res_HPPC1.mat');
 p = polyfit(Res_HPPC(:,1), Res_HPPC(:,2), 1);
 R_Res = polyval(p, R_Cycle_no );
 
@@ -202,19 +245,6 @@ solver = nlpsol('solver', 'ipopt', nlp_mhe,opts);
 
 args   = struct;
 
-%% State Limits Variables
-Charge_current = 4.85;
-R0_1st_cycle   = 0.061;%Res_HPPC(:,1);
-
-Q_min          = 0;                                                         % Minimum Generated Heat
-Q_max          = 2*R0_1st_cycle*Charge_current^2;                           % Maximum Generated Heat
-
-T_min          = 10;                                                        % Minimum Surface Temperature
-T_max          = 50;                                                        % Maximum Surface Temperature
-
-Tamb_min       = 20;                                                        % Minimum Ambient Temperature
-Tamb_max       = 30;                                                        % Maximum Ambient Temperature
-
 %% Constraint 
 
 num_con = n_states + n_disturbances;
@@ -255,7 +285,7 @@ W0 = rand(N_MHE,n_disturbances);
 mheiter = 0;
 
 y_measurements = R_Temper1;
-u_cl = awgn(R_Tamb1,50);% R_Tamb1;
+u_cl = awgn(R_Tamb1,10);% R_Tamb1;
 
 P_cov = diag([1 1]).^2;
 
