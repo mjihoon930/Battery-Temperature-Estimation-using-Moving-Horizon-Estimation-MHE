@@ -62,7 +62,7 @@ switch(Data_Type)
         Tamb_min       = 20;                                                        % Minimum Ambient Temperature
         Tamb_max       = 30;                                                        % Maximum Ambient Temperature
 
-        load('Res_HPPC1.mat');
+        load('Data/Res_HPPC1.mat');
     
     case 'Cold'
 
@@ -81,7 +81,7 @@ switch(Data_Type)
         Tamb_min       = -6;                                                        % Minimum Ambient Temperature
         Tamb_max       = 0;                                                        % Maximum Ambient Temperature
 
-        load('Res_HPPC.mat');
+        load('Data/Res_HPPC.mat');
 
 end
 
@@ -105,7 +105,7 @@ N_MHE = 10;
 
 %% System Dynamics
 
-load('theta.mat')
+load('Data/theta.mat')
 
 % Define State Space Model
 A                 = [-theta(1),theta(2);0,0];
