@@ -132,22 +132,10 @@ D_discrete = Discrete_orig_Sys.D;
 %% States
 Ti       = SX.sym('Ti');                                        % State 1: Surface Temperature
 Q_h      = SX.sym('Q_h');                                       % State 2: Generated Heat
+T_amb      = SX.sym('T_amb');
 
-states   = [Ti; Q_h];                                           % State Vector
+states   = [Ti; Q_h; T_amb];                                           % State Vector
 n_states = length(states);                                      % Number of States
-
-%% Control
-T_amb      = SX.sym('T_amb');                                   % Control Input: Ambient Temperature
-
-controls   = [T_amb];                                           % Control Input
-n_controls = length(controls);                                  % Number of Control Input
-
-%% Disturbances
-w1 = SX.sym('w1');                                              % State 1 Process Noise
-w2 = SX.sym('w2');                                              % State 2 Process Noise
-
-disturbances   = [w1 ; w2];                                     % Disturbances Vector
-n_disturbances = length(disturbances);                          % Number of Disturbances
 
 %% Covariance Matrix
 Meas_noise_cov  = 1;                                            % Measuremet Noise Covariance Matrix Value
@@ -158,17 +146,16 @@ State_cov       = diag([State_noise_cov,State_noise_cov]).^2;   % Process Noise 
 
 %% State Dynamics
 rhs = A_continuous*[Ti; Q_h] + B_continuous*T_amb;              % System Right Hand Side
-f   = Function('f',{states,controls,disturbances},{rhs});       % State Dynamics Function
+f   = Function('f',{states},{rhs});       % State Dynamics Function
 
 measurement_rhs = Ti;
-h = Function('h',{states,controls},{measurement_rhs});          % Measurement Function
+h = Function('h',{states},{measurement_rhs});          % Measurement Function
 
 %% Decision Variables
 X  = SX.sym('X',n_states, (N_MHE+1));                           % Decision Variables for State
-Wj = SX.sym('Wj',n_disturbances, (N_MHE));                      % Decision Variables for Process Noise
 
 %% Parameters to be Passed: Measuremnts and control inputs
-P  = SX.sym('P',1, (N_MHE+1)+ (N_MHE+1) + n_states*n_states + n_states);                       % first N_MHE+a correspond to surface temperature measurments and second N_MHE columns Correspond to Control inputs which are known
+P  = SX.sym('P',1, (N_MHE+1) + (n_states-1)*(n_states-1) + (n_states-1));                       % first N_MHE+a correspond to surface temperature measurments and second N_MHE columns Correspond to Control inputs which are known
 
 %% Weighting Matrices
 V = inv(sqrt(Meas_cov));                                        % Weighting Matrix for Measurement
@@ -180,10 +167,10 @@ obj = 0; % Objective function
 g   = [];  % constraints vector
 
 % Arrival Cost
-first_state = X(:,1);
-first_state_prior = reshape(P(:,(end-n_states+1):end),n_states,1);
+first_state = X(1:2,1);
+first_state_prior = reshape(P(:,(end-(n_states-1)+1):end),(n_states-1),1);
 
-P_arrival = inv(reshape(P(:,((2*N_MHE+2)+1):((2*N_MHE+2))+(n_states*n_states)),n_states,n_states));
+P_arrival = inv(reshape(P(:,((N_MHE+1)+1):((N_MHE+1))+((n_states-1)*(n_states-1))),(n_states-1),(n_states-1)));
 
 obj = obj + ( (first_state - first_state_prior)' * P_arrival * (first_state - first_state_prior) );
 
@@ -191,8 +178,7 @@ obj = obj + ( (first_state - first_state_prior)' * P_arrival * (first_state - fi
 for k = 1:N_MHE+1
 
     st      = X(:,k);
-    con     = P(:,(N_MHE+1+k));
-    h_x     = h(st,con);
+    h_x     = h(st);
     y_tilde = P(:,k);
     
     obj     = obj + (y_tilde - h_x)' * V * (y_tilde - h_x);     % calculate obj based on difference between measured temperature and measurment model
@@ -203,11 +189,9 @@ end
 for k = 1:N_MHE
 
     st_pr  = X(:,k);
-    st_po  = X(:,k+1);
-    con    = P(:, (N_MHE+1+k));
-    dist   = Wj(:,k);
+    st_po  = X(1:2,k+1);
     
-    obj = obj + ((st_po - (A_discrete*st_pr + B_discrete*con + dist))' * W * (st_po - (A_discrete*st_pr + B_discrete*con + dist)));
+    obj = obj + ((st_po - (A_discrete*st_pr(1:2) + B_discrete*st_pr(3)))' * W * (st_po - (A_discrete*st_pr(1:2) + B_discrete*st_pr(3))));
 
 end
 
@@ -215,11 +199,9 @@ end
 for k = 1:N_MHE
     
     st            = X(:,k);  
-    con           = P(:,(N_MHE+1+k));
-    dist          = Wj(:,k);
-    st_next       = X(:,k+1);
-    f_value       = f(st,con,dist);
-    st_next_euler = st + (dt*f_value);
+    st_next       = X(1:2,k+1);
+    f_value       = f(st);
+    st_next_euler = st(1:2) + (dt*f_value);
 
     g = [g;st_next-st_next_euler]; % compute constraints
 
@@ -227,7 +209,7 @@ end
 
 %% MHE solver
 % Make the Decision Variable One Column  Vector
-OPT_variables = [reshape(X,n_states*(N_MHE+1),1) ; reshape(Wj,n_disturbances*(N_MHE),1)];
+OPT_variables = [reshape(X,n_states*(N_MHE+1),1)];
 
 % Structure
 nlp_mhe       = struct('f', obj, 'x', OPT_variables, 'g', g, 'p', P);
@@ -247,47 +229,40 @@ args   = struct;
 
 %% Constraint 
 
-num_con = n_states + n_disturbances;
+num_con = n_states;
 
 % equality constraints
-args.lbg(1:n_states*(N_MHE)) = 0;
-args.ubg(1:n_states*(N_MHE)) = 0;
+args.lbg(1:(n_states-1)*(N_MHE)) = 0;
+args.ubg(1:(n_states-1)*(N_MHE)) = 0;
 
 % State constraints
-args.lbx(1:num_con:(n_states*(N_MHE+1) + n_disturbances*N_MHE),1) = T_min;  % Surface T Lower Bound
-args.ubx(1:num_con:(n_states*(N_MHE+1) + n_disturbances*N_MHE),1) = T_max;  % Surface T Upper Bound
-args.lbx(2:num_con:(n_states*(N_MHE+1) + n_disturbances*N_MHE),1) = Q_min;  % Generated Heat Lower Bound
-args.ubx(2:num_con:(n_states*(N_MHE+1) + n_disturbances*N_MHE),1) = Q_max;  % Generated Heat Upper Bound
-
-% Disturbances constraints
-args.lbx(3:num_con:((n_states+n_disturbances)*N_MHE),1) = -inf;             % Noise Surface T Lower Bound
-args.ubx(3:num_con:((n_states+n_disturbances)*N_MHE),1) = inf;              % Noise Surface T Upper Bound
-args.lbx(4:num_con:((n_states+n_disturbances)*N_MHE),1) = -inf;             % Noise Generated Heat Lower Bound
-args.ubx(4:num_con:((n_states+n_disturbances)*N_MHE),1) = inf;              % Noise Generated Heat Upper Bound
+args.lbx(1:num_con:(n_states*(N_MHE+1)),1) = T_min;  % Surface T Lower Bound
+args.ubx(1:num_con:(n_states*(N_MHE+1)),1) = T_max;  % Surface T Upper Bound
+args.lbx(2:num_con:(n_states*(N_MHE+1)),1) = Q_min;  % Generated Heat Lower Bound
+args.ubx(2:num_con:(n_states*(N_MHE+1)),1) = Q_max;  % Generated Heat Upper Bound
+args.lbx(3:num_con:(n_states*(N_MHE+1)),1) = Tamb_min;  % Generated Heat Lower Bound
+args.ubx(3:num_con:(n_states*(N_MHE+1)),1) = Tamb_max;  % Generated Heat Upper Bound
 
 %% Moving Horizon Estimation
 %% Initial Guess
 x1_initial_guess = R_Temper1(1);
 x2_initial_guess = 0;
+x3_initial_guess = -3;
 
 
-x_ig = [x1_initial_guess ; x2_initial_guess];
+x_ig = [x1_initial_guess ; x2_initial_guess ; x3_initial_guess];
 X0(1,1:n_states) = x_ig';
 
 X_estimate = [];                    % X_estimate contains the MHE estimate of the states
 X0 = x_ig'.*ones(N_MHE+1,n_states); % initialization of the states decision variables
-
-W_estimate = [];
-W0 = rand(N_MHE,n_disturbances);
 
 %% Start Moving Horizon Estimation
 
 mheiter = 0;
 
 y_measurements = R_Temper1;
-u_cl = awgn(R_Tamb1,10);% R_Tamb1;
 
-P_cov = diag([1 1]).^2;
+P_cov = diag([1 1000]).^2;
 
 data_length = 3601*1;
 
@@ -296,25 +271,22 @@ for k = 1: length(t11(1:data_length)) - (N_MHE)
     mheiter = k
 
     % Get the Measurement Window and Put It as Parameters in P
-    args.p   = [y_measurements(k:k+N_MHE,1)',u_cl(k:k+N_MHE,:)',reshape(P_cov,1,n_states*n_states),X0(1,:)];
+    args.p   = [y_measurements(k:k+N_MHE,1)',reshape(P_cov,1,(n_states-1)*(n_states-1)),X0(1,1:2)];
 
     % initial value of the optimization variables
-    args.x0  = [reshape(X0',n_states*(N_MHE+1),1) ; reshape(W0',n_disturbances*N_MHE,1)];
+    args.x0  = [reshape(X0',n_states*(N_MHE+1),1)];
 
     % Solve Optimization Problem
     sol = solver('x0', args.x0, 'lbx', args.lbx, 'ubx', args.ubx,'lbg', args.lbg, 'ubg', args.ubg,'p',args.p);
     
     % Get Solution TRAJECTORY
     X_sol = reshape(full(sol.x(1:n_states*(N_MHE+1)))',n_states,N_MHE+1)'; 
-    W_sol = reshape(full(sol.x(n_states*(N_MHE+1)+1:end))',n_disturbances,N_MHE)';
     
     % Save the TRAJECTORY
     X_estimate = [X_estimate;X_sol(N_MHE+1,:)];
-    W_estimate = [W_estimate;W_sol(N_MHE,:)];
     
     % Shift trajectory to initialize the next step
     X0 = [X_sol(2:end,:);X_sol(end,:)];
-    W0 = [W_sol(2:end,:);W_sol(end,:)];
 
     % Algebraic Riccati Equation
     P_cov = B_discrete.*State_cov.*B_discrete' + A_discrete*(P_cov - P_cov*C'*inv(Meas_cov + C_discrete*P_cov*C_discrete')*C_discrete*P_cov)*A_discrete';
