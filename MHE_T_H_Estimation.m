@@ -13,7 +13,7 @@ close all
 clc
 
 %% Import CasADi Package
-addpath('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\Battery-Temperature-Estimation-using-Moving-Horizon-Estimation-MHE\casadi-3');
+addpath('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Desktop\casadi-3.6.4-windows64-matlab2018b')
 import casadi.*
 
 %% Input Profile
@@ -35,39 +35,18 @@ Tamb=batteryData.T_amb(start_index:last_index);
 Cycle_no1=batteryData.cycle_no(start_index:last_index);
 Resistance=batteryData.Resistance(start_index:last_index);
 dt=diff(time1(1:2));
-Charge_current = 2.99;
+Charge_current = 3;
 R0_1st_cycle   = Resistance(1);
-        
-        Q_min          = 0;                                                         % Minimum Generated Heat
-        Q_max          = 2*R0_1st_cycle*Charge_current^2;                           % Maximum Generated Heat
-        
-        T_min          = 10;                                                        % Minimum Surface Temperature
-        T_max          = 50;                                                        % Maximum Surface Temperature
-        
-        Tamb_min       = 20;                                                        % Minimum Ambient Temperature
-        Tamb_max       = 30; 
+Q_min          = 0;                                                         % Minimum Generated Heat
+Q_max          = 2*R0_1st_cycle*Charge_current^2;                           % Maximum Generated Heat
+T_min          = 10;                                                        % Minimum Surface Temperature
+T_max          = 50;                                                        % Maximum Surface Temperature
+Tamb_min       = 20;                                                        % Minimum Ambient Temperature
+Tamb_max       = 25;
 theta=batteryData.theta;
-
-%% Resampling the data for equal intervals
-% Te11       = timeseries([volt1,curr1,Temp1, Tamb,Cycle_no1],time1-time1(1));
-% t11        = [time1(1)-time1(1):dt:time1(end)-time1(1)];
-% dt         = t11(2)-t11(1);
-% Te2        = resample(Te11,t11');
-% R_Voltage1 = Te2.Data(:,1);
-% curr1 = Te2.Data(:,2);
-% Temp1  = Te2.Data(:,3);
-% R_Tamb1    = Te2.Data(:,4);
-% R_Cycle_no = Te2.Data(:,5);
-% sim_tim    = length(t11);
-% 
-% p = polyfit(Res_HPPC(:,1), Res_HPPC(:,2), 1);
-% R_Res = polyval(p, R_Cycle_no );
-
 %% Set Horizon Length
 N_MHE = 10;     
-
 %% System Dynamics
-
 % Define State Space Model
 A                 = [-theta(1),theta(2);0,0];
 B                 = [theta(1);0];
@@ -76,7 +55,6 @@ D                 = [0];
 
 % Continuous Time System Dynamics
 Orig_sys          = ss(A,B,C,D);
-
 A_continuous      = Orig_sys.A;
 B_continuous      = Orig_sys.B;
 C_continuous      = Orig_sys.C;
@@ -94,21 +72,16 @@ D_discrete = Discrete_orig_Sys.D;
 Ti       = SX.sym('Ti');                                        % State 1: Surface Temperature
 Q_h      = SX.sym('Q_h');                                       % State 2: Generated Heat
 T_amb      = SX.sym('T_amb');
-
-states   = [Ti; Q_h; T_amb];                                           % State Vector
+states   = [Ti; Q_h; T_amb];                                    % State Vector
 n_states = length(states);                                      % Number of States
-
 %% Covariance Matrix
-Meas_noise_cov  = 1;                                            % Measuremet Noise Covariance Matrix Value
-Meas_cov        = diag(Meas_noise_cov).^2;                      % Measuremet Noise Covariance Matrix
-
-State_noise_cov = 1000;                                         % Process Noise Covariance Matrix Value
-State_cov       = diag([State_noise_cov,State_noise_cov]).^2;   % Process Noise Covariance Matrix
-
+Meas_noise_cov  = 11;                                            % Measuremet Noise Covariance Matrix Value
+Meas_cov        = diag(Meas_noise_cov).^2;                      % Measuremet Noise Covariance Matrix                                    % Process Noise Covariance Matrix Value
+State_cov       = diag([1,100]).^2;                              % Process Noise Covariance Matrix
+P_cov = diag([0.01 10]).^2;
 %% State Dynamics
 rhs = A_continuous*[Ti; Q_h] + B_continuous*T_amb;              % System Right Hand Side
 f   = Function('f',{states},{rhs});       % State Dynamics Function
-
 measurement_rhs = Ti;
 h = Function('h',{states},{measurement_rhs});          % Measurement Function
 
@@ -208,8 +181,7 @@ args.ubx(3:num_con:(n_states*(N_MHE+1)),1) = Tamb_max;  % Generated Heat Upper B
 %% Initial Guess
 x1_initial_guess = Temp1(1);
 x2_initial_guess = 0;
-x3_initial_guess = -3;
-
+x3_initial_guess = 23;
 
 x_ig = [x1_initial_guess ; x2_initial_guess ; x3_initial_guess];
 X0(1,1:n_states) = x_ig';
@@ -223,11 +195,10 @@ mheiter = 0;
 
 y_measurements = Temp1;
 
-P_cov = diag([1 1000]).^2;
 
 data_length = 3601*1;
 
-for k = 1: length(t11(1:data_length)) - (N_MHE)
+for k = 1: length(time1(1:data_length)) - (N_MHE)
 
     mheiter = k
 
@@ -260,18 +231,18 @@ X_estimate = [x_ig'.*ones(N_MHE,n_states) ; X_estimate];
 
 figure
 subplot(311)
-plot(t11(1:data_length)/3600,curr1(1:data_length))
+plot(time1(1:data_length)/3600,curr1(1:data_length))
 ylabel('Current')
 
 subplot(312)
-plot(t11(1:data_length)/3600,Temp1(1:data_length))
+plot(time1(1:data_length)/3600,Temp1(1:data_length))
 hold on
-plot(t11(1:data_length)/3600,X_estimate(:,1))
+plot(time1(1:data_length)/3600,X_estimate(:,1))
 ylabel('Temperature')
 
 subplot(313)
-plot(t11(1:data_length)/3600,X_estimate(:,2))
+plot(time1(1:data_length)/3600,X_estimate(:,2))
 hold on;
-plot(t11(1:data_length)/3600, R_Res(1:data_length).*curr1(1:data_length).^2)
+plot(time1(1:data_length)/3600, Resistance(1:data_length).*curr1(1:data_length).^2)
 ylabel('Heat Generation')
 set(gcf,'Color','White')
