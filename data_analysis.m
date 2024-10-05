@@ -36,7 +36,8 @@ fd;
 plot(batteryData.Time_s,batteryData.Current );
 fd;
 plot(batteryData.Time_s,batteryData.Voltage_V );
-
+fd;
+plot(batteryData.Time_s,batteryData.Temperature_C);
 
 %% Initialize variables
 chargePhases = struct();  % Structure to store all charge phases
@@ -44,11 +45,15 @@ isCharging = false;
 currentPhase = [];
 phaseIndex = 1;
 startTime = 0;  % Variable to store the start time of the current charge phase
-Res=[];
-Index=[];
+Res = [];
+Index = [];
+Resistance = [];
+Currentdiff = [];
+Voltdiff = [];
+deltaI=0;
 % Loop through the data to identify and separate charge phases
 for i = 1:height(batteryData.Current)
-    if batteryData.Current(i) < 0  % Assuming negative current indicates charging
+    if batteryData.Current(i) < 0  % Negative current indicates charging
         if ~isCharging
             % Start of a new charge phase
             if ~isempty(currentPhase)
@@ -56,22 +61,49 @@ for i = 1:height(batteryData.Current)
                 chargePhases(phaseIndex).Current_A = currentPhase(:, 2);
                 chargePhases(phaseIndex).Voltage_V = currentPhase(:, 3);
                 chargePhases(phaseIndex).Temperature_C = currentPhase(:, 4);
-                 chargePhases(phaseIndex).T_amb=min(chargePhases(phaseIndex).Temperature_C);
+                chargePhases(phaseIndex).T_amb = min(chargePhases(phaseIndex).Temperature_C);
                 phaseIndex = phaseIndex + 1;
             end
             currentPhase = [];  % Reset current phase
             startTime = batteryData.Time_s(i);  % Reset the start time
             isCharging = true;
-            if i>1
-                if (abs(batteryData.Current(i))) > 1.5 & batteryData.Voltage_V(i)>3.5
-                    Res=[Res;abs((batteryData.Voltage_V(i)-batteryData.Voltage_V(i-1))/(batteryData.Current(i)-batteryData.Current(i-1)))];
-                    Index=[Index, phaseIndex];
-                    Resistance(phaseIndex)=abs((batteryData.Voltage_V(i)-batteryData.Voltage_V(i-1))/(batteryData.Current(i)-batteryData.Current(i-1)));
-                    chargePhases(phaseIndex).Resistance=Resistance(phaseIndex);
-                    chargePhases(phaseIndex).Charge_start=i;
+            
+            % Find rest index (last point before significant negative increase)
+            restIndex = i - 1;
+            while restIndex > 1 && batteryData.Current(restIndex) < -0.1
+                restIndex = restIndex - 1;
+            end
+            Amb_T_index=i+1;
+            T_amb=[];
+            while  batteryData.Current(Amb_T_index)<=0
+                    Amb_T_index=Amb_T_index+1;
+                    T_amb=[T_amb,batteryData.Temperature_C(Amb_T_index)];
+                    chargePhases(phaseIndex).T_amb=batteryData.Temperature_C(Amb_T_index);
+            end
+            
+            % Calculate resistance if conditions are met
+            if abs(batteryData.Current(i)) > 1.7 && batteryData.Voltage_V(i) > 3.6
+                    CC_startIndex = i;
+            while CC_startIndex > 1 && batteryData.Current( CC_startIndex )>-2.95
+                CC_startIndex= CC_startIndex+ 1;
+                 deltaV = batteryData.Voltage_V(CC_startIndex) - batteryData.Voltage_V(restIndex);
+                deltaI = batteryData.Current(CC_startIndex) - batteryData.Current(restIndex);
+            end
+               
+                
+                if deltaI ~= 0
+                    R0 = abs(deltaV / deltaI);
+                    Res = [Res; R0];
+                    Index = [Index, phaseIndex];
+                    Resistance(phaseIndex) = R0;
+                    chargePhases(phaseIndex).Resistance = R0;
+                    Currentdiff(phaseIndex) = deltaI;
+                    Voltdiff(phaseIndex) = deltaV;
+                    chargePhases(phaseIndex).Charge_start = i;
                 end
             end
         end
+
         % Add the current row to the current charge phase, adjusting time to start from 0
         adjustedTime = batteryData.Time_s(i) - startTime;
         currentPhase = [currentPhase; adjustedTime, batteryData.Current(i), batteryData.Voltage_V(i), batteryData.Temperature_C(i)];
@@ -82,7 +114,7 @@ for i = 1:height(batteryData.Current)
             chargePhases(phaseIndex).Current_A = currentPhase(:, 2);
             chargePhases(phaseIndex).Voltage_V = currentPhase(:, 3);
             chargePhases(phaseIndex).Temperature_C = currentPhase(:, 4);
-             chargePhases(phaseIndex).T_amb=min(chargePhases(phaseIndex).Temperature_C);
+%             chargePhases(phaseIndex).T_amb = min(chargePhases(phaseIndex).Temperature_C);
             phaseIndex = phaseIndex + 1;
             currentPhase = [];
             isCharging = false;
@@ -90,14 +122,28 @@ for i = 1:height(batteryData.Current)
     end
 end
 
-% If the last rows were in a charge phase, add them to chargePhases
-if ~isempty(currentPhase)
-    chargePhases(phaseIndex).Time_s = currentPhase(:, 1);
-    chargePhases(phaseIndex).Current_A = currentPhase(:, 2);
-    chargePhases(phaseIndex).Voltage_V = currentPhase(:, 3);
-    chargePhases(phaseIndex).Temperature_C = currentPhase(:, 4);
-    chargePhases(phaseIndex).T_amb=min(chargePhases(phaseIndex).Temperature_C);
-end
+% Plot voltage and current differences for verification
+figure;
+subplot(2,1,1);
+plot(Voltdiff, '-o');
+title('Voltage Differences');
+xlabel('Phase Index');
+ylabel('Voltage Difference (V)');
+
+subplot(2,1,2);
+plot(Currentdiff, '-s');
+title('Current Differences');
+xlabel('Phase Index');
+ylabel('Current Difference (A)');
+
+% % If the last rows were in a charge phase, add them to chargePhases
+% if ~isempty(currentPhase)
+%     chargePhases(phaseIndex).Time_s = currentPhase(:, 1);
+%     chargePhases(phaseIndex).Current_A = currentPhase(:, 2);
+%     chargePhases(phaseIndex).Voltage_V = currentPhase(:, 3);
+%     chargePhases(phaseIndex).Temperature_C = currentPhase(:, 4);
+%     chargePhases(phaseIndex).T_amb=min(chargePhases(phaseIndex).Temperature_C);
+% end
 %% Optional: Plot temperature growth for each charge phase
 % Create figure
 figure1 = figure;
@@ -115,7 +161,7 @@ colormap(cmap);
 % Plot each phase
 for j = Index
     Voltage_V = chargePhases(j).Voltage_V;
-    if max(abs(chargePhases(j).Current_A)) > 1.5 && Voltage_V(1) > 3.5
+    if max(abs(chargePhases(j).Current_A)) > 1.7 && Voltage_V(1) > 3.6
         % Plot with color based on phase index
         
         plot(chargePhases(j).Time_s, chargePhases(j).Temperature_C, 'Color', cmap(j,:), 'LineWidth', 0.5);
@@ -152,7 +198,7 @@ colormap(cmap);
 % Plot each phase
 for j = Index
     Voltage_V = chargePhases(j).Voltage_V;
-    if max(abs(chargePhases(j).Current_A)) > 1.5 && Voltage_V(1) > 3.5
+    if max(abs(chargePhases(j).Current_A)) > 1.7 && Voltage_V(1) > 3.6
         % Plot with color based on phase index
         plot(chargePhases(j).Time_s, chargePhases(j).Current_A, 'Color', cmap(j,:), 'LineWidth', 0.5);
     end
@@ -188,7 +234,7 @@ colormap(cmap);
 % Plot each phase
 for j = Index
     Voltage_V = chargePhases(j).Voltage_V;
-    if max(abs(chargePhases(j).Current_A)) > 1.5 && Voltage_V(1) > 3.5
+    if max(abs(chargePhases(j).Current_A)) > 1.5 && Voltage_V(1) > 3.6
         % Plot with color based on phase index
         plot(chargePhases(j).Time_s, Voltage_V, 'Color', cmap(j,:), 'LineWidth', 0.5);
     end
@@ -292,4 +338,4 @@ Charge_Curr=3;
 [Heat , R_estimated]=Luenberger_Observer(theta,batteryData, Charge_Curr)
 
 
-
+ 

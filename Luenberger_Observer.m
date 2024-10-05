@@ -18,7 +18,7 @@ D = [0];
 Orig_sys = ss(A, B, C, D);
 
 %% Observer Design Luenberger
-L = place(A', C', [-0.05, -0.22]);
+L = place(A', C', [-0.065, -0.008]);
 Aobs = A - L' * C;
 Bobs = [B, L'];
 Cobs = [1, 0];
@@ -100,7 +100,7 @@ for j = 1:length(charge_start)
     R_estimated(j) = mean(Resistance_est);
     
     % Plotting
-    plotResults(ax1, ax2, Time, Temp, x, Curr, Known_Res(j), Heat, Ind0);
+    plotResults(ax1, ax2, Time, Temp, Tamb, x, Curr, Known_Res(j), Heat, Ind0);
 end
 
 % Finalize plot
@@ -110,6 +110,10 @@ fd;
 plot(Known_Res);
 hold on;
 plot(R_estimated);
+xlabel('Cycle number')
+ylabel('Resistance')
+legend('DeltaV/DeltaI at start of charge','Temperature based Resistance')
+
 end
 
 function [charge_start, Ambient_Temp, Known_Res] = extractChargePhaseData(batteryData)
@@ -128,7 +132,7 @@ end
 function index_end = findChargingEnd(Current_A, index_pos,Charge_Curr)
 positive_indices = find(Current_A(index_pos) < -0.99*Charge_Curr);
 if any(diff(positive_indices)>1)
-    positive_indices=positive_indices(1:find(diff(positive_indices)>1))
+    positive_indices=positive_indices(1:find(diff(positive_indices)>1));
 end
 
 if ~isempty(positive_indices)
@@ -139,11 +143,12 @@ else
 end
 end
 
-function plotResults(ax1, ax2, Time, Temp, x, Curr, Known_Res, Heat, I22)
+function plotResults(ax1, ax2, Time, Temp,Tamb, x, Curr, Known_Res, Heat, I22)
 % Temperature plot
 plot(ax1, Time./3600, Temp, '--k', 'linewidth', 3);
 hold(ax1, 'on');
 plot(ax1, Time./3600, x(:, 1), 'r', 'linewidth', 2);
+
 ylabel(ax1, 'Temperature (°C)');
 set(ax1, 'xtick', [])
 legend(ax1, 'Measured Temperature', 'Estimated Temperature');

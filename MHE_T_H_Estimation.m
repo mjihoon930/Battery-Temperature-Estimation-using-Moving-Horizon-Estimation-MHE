@@ -35,17 +35,17 @@ Tamb=batteryData.T_amb(start_index:last_index);
 Cycle_no1=batteryData.cycle_no(start_index:last_index);
 Resistance=batteryData.Resistance(start_index:last_index);
 dt=diff(time1(1:2));
-Charge_current = 3;
+Charge_current = -3;
 R0_1st_cycle   = Resistance(1);
 Q_min          = 0;                                                         % Minimum Generated Heat
 Q_max          = 2*R0_1st_cycle*Charge_current^2;                           % Maximum Generated Heat
-T_min          = 10;                                                        % Minimum Surface Temperature
-T_max          = 50;                                                        % Maximum Surface Temperature
+T_min          = 20;                                                        % Minimum Surface Temperature
+T_max          = 40;                                                        % Maximum Surface Temperature
 Tamb_min       = 20;                                                        % Minimum Ambient Temperature
 Tamb_max       = 25;
 theta=batteryData.theta;
 %% Set Horizon Length
-N_MHE = 10;     
+N_MHE = 20;     
 %% System Dynamics
 % Define State Space Model
 A                 = [-theta(1),theta(2);0,0];
@@ -75,10 +75,10 @@ T_amb      = SX.sym('T_amb');
 states   = [Ti; Q_h; T_amb];                                    % State Vector
 n_states = length(states);                                      % Number of States
 %% Covariance Matrix
-Meas_noise_cov  = 11;                                            % Measuremet Noise Covariance Matrix Value
+Meas_noise_cov  = 100;                                            % Measuremet Noise Covariance Matrix Value
 Meas_cov        = diag(Meas_noise_cov).^2;                      % Measuremet Noise Covariance Matrix                                    % Process Noise Covariance Matrix Value
-State_cov       = diag([1,100]).^2;                              % Process Noise Covariance Matrix
-P_cov = diag([0.01 10]).^2;
+State_cov       = diag([1,10]).^2;                              % Process Noise Covariance Matrix
+P_cov = diag([0.1 10]).^2;
 %% State Dynamics
 rhs = A_continuous*[Ti; Q_h] + B_continuous*T_amb;              % System Right Hand Side
 f   = Function('f',{states},{rhs});       % State Dynamics Function
@@ -196,7 +196,7 @@ mheiter = 0;
 y_measurements = Temp1;
 
 
-data_length = 3601*1;
+data_length = 20000;%length(time1);
 
 for k = 1: length(time1(1:data_length)) - (N_MHE)
 
@@ -222,7 +222,13 @@ for k = 1: length(time1(1:data_length)) - (N_MHE)
 
     % Algebraic Riccati Equation
     P_cov = B_discrete.*State_cov.*B_discrete' + A_discrete*(P_cov - P_cov*C'*inv(Meas_cov + C_discrete*P_cov*C_discrete')*C_discrete*P_cov)*A_discrete';
-    
+    if batteryData.Resistance(k)>0
+        HG(k)=X_estimate(k,2);
+        Res_HG(k)=X_estimate(k,2)./curr1(k).^2;
+    else 
+        HG(k)=0;
+        Res_HG(k)=0;
+    end
 end
 
 X_estimate = [x_ig'.*ones(N_MHE,n_states) ; X_estimate];
@@ -246,3 +252,8 @@ hold on;
 plot(time1(1:data_length)/3600, Resistance(1:data_length).*curr1(1:data_length).^2)
 ylabel('Heat Generation')
 set(gcf,'Color','White')
+
+figure;
+plot(Res_HG);
+hold on;
+plot(Resistance);
