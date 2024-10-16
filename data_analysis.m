@@ -31,7 +31,9 @@ batteryData.Current = Current_A;
 batteryData.Voltage_V = Voltage_V;
 batteryData.Time_s = time_s;
 batteryData.Temperature_C = Temperature_C;
-
+batteryData.T_amb = zeros(length(Temperature_C),1);
+ batteryData.cycle_no=zeros(length(Temperature_C),1);
+  batteryData.Resistance=zeros(length(Temperature_C),1);
 fd;
 plot(batteryData.Time_s,batteryData.Current );
 fd;
@@ -120,30 +122,27 @@ for i = 1:height(batteryData.Current)
             isCharging = false;
         end
     end
+if phaseIndex>1
+       batteryData.T_amb(i)=chargePhases(phaseIndex-1).T_amb;
+
+    else
+         batteryData.T_amb(i)=batteryData.Temperature_C(i);
+  
+    end
+    batteryData.cycle_no(i)=phaseIndex;
+    
+    if numel(Resistance) >= phaseIndex && numel(batteryData.Resistance) >= i
+        batteryData.Resistance(i) = Resistance(phaseIndex);
+    else
+        warning('Index out of bounds for Resistance or batteryData.Resistance');
+    end
 end
 
-% Plot voltage and current differences for verification
-figure;
-subplot(2,1,1);
-plot(Voltdiff, '-o');
-title('Voltage Differences');
-xlabel('Phase Index');
-ylabel('Voltage Difference (V)');
+fd;
+hold on;
+plot(batteryData.Time_s,batteryData.Temperature_C);
+plot(batteryData.Time_s,batteryData.T_amb);
 
-subplot(2,1,2);
-plot(Currentdiff, '-s');
-title('Current Differences');
-xlabel('Phase Index');
-ylabel('Current Difference (A)');
-
-% % If the last rows were in a charge phase, add them to chargePhases
-% if ~isempty(currentPhase)
-%     chargePhases(phaseIndex).Time_s = currentPhase(:, 1);
-%     chargePhases(phaseIndex).Current_A = currentPhase(:, 2);
-%     chargePhases(phaseIndex).Voltage_V = currentPhase(:, 3);
-%     chargePhases(phaseIndex).Temperature_C = currentPhase(:, 4);
-%     chargePhases(phaseIndex).T_amb=min(chargePhases(phaseIndex).Temperature_C);
-% end
 %% Optional: Plot temperature growth for each charge phase
 % Create figure
 figure1 = figure;
