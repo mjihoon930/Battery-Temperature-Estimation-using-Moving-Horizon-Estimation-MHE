@@ -335,6 +335,13 @@ end
 %% Calling Luenberger Observer
 Charge_Curr=3;
 [Heat , R_estimated]=Luenberger_Observer(theta,batteryData, Charge_Curr)
+%% Resistance Calculation
+[charge_start, Ambient_Temp, Known_Res] = extractChargePhaseData(batteryData);
+fd; 
+hold on;
+plot(R_estimated)
+plot(Known_Res)
+legend('Luenberger Observer', 'True Value')
 
 
  

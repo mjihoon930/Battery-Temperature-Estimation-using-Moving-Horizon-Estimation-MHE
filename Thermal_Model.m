@@ -26,7 +26,7 @@ function [theta, RMSE, MAE, Sys4] = Thermal_Model(chargePhases,  Resistance)
     ylabel('Heat Generated [W]');
     
     % Transfer function setup
-    l1 = 10; l2 = 20;
+    l1 = 1; l2 = 2;
     num = [1, 0];
     den = [1, l1+l2, l1*l2];
     sys = tf(num, den);

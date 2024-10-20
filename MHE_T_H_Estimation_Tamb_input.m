@@ -27,15 +27,14 @@ if ~isempty(start_index)
 end
 end
 last_index=length(batteryData.Time_s);
-time1=batteryData.Time_s(start_index:last_index);
-curr1=batteryData.Current(start_index:last_index);
-volt1=batteryData.Voltage_V(start_index:last_index);
-Temp1=batteryData.Temperature_C(start_index:last_index);
-Tamb=batteryData.T_amb(start_index:last_index);
-Cycle_no1=batteryData.cycle_no(start_index:last_index);
-Resistance=batteryData.Resistance(start_index:last_index);
+time1=batteryData.Time_s;
+curr1=batteryData.Current;
+volt1=batteryData.Voltage_V;
+Temp1=batteryData.Temperature_C;
+Tamb=batteryData.T_amb;
+Cycle_no1=batteryData.cycle_no;
+Resistance=batteryData.Resistance;
 dt=diff(time1(1:2));
-Charge_current = -3;
 R0_1st_cycle   = Resistance(1);
 Q_min          = 0;                                                         % Minimum Generated Heat
 Q_max          = 100;                           % Maximum Generated Heat
@@ -224,7 +223,7 @@ mheiter = 0;
 y_measurements = Temp1;
 u_cl=Tamb;
 
-P_cov = diag([1 1]).^2;
+P_cov = diag([100 1]).^2;
 
 data_length =  length(time1);
 
@@ -262,7 +261,7 @@ X_estimate = [x_ig'.*ones(N_MHE,n_states) ; X_estimate];
 
 %% Figure
 data_length=mheiter;
-figure
+figure(1)
 subplot(311)
 plot(time1(1:data_length)/3600,curr1(1:data_length))
 ylabel('Current')
@@ -270,23 +269,30 @@ ylabel('Current')
 subplot(312)
 plot(time1(1:data_length)/3600,Temp1(1:data_length))
 hold on
-plot(time1(1:data_length)/3600,X_estimate(:,1),'--k')
+plot(time1(1:data_length)/3600,X_estimate(1:data_length,1),'--k')
 ylabel('Temperature')
 
 subplot(313)
 
 hold on;
 plot(time1(1:data_length)/3600, Resistance(1:data_length).*curr1(1:data_length).^2)
-plot(time1(1:data_length)/3600,X_estimate(:,2),'--k')
+plot(time1(1:data_length)/3600,X_estimate(1:data_length,2),'--k')
 ylabel('Heat Generation')
 set(gcf,'Color','White')
-
+linkaxesInFigure('x')
 %% Resistance Calculation
 [charge_start, Ambient_Temp, Known_Res] = extractChargePhaseData(batteryData);
 
 %% Plotting Setup
-fd;
-Charge_Curr=3;
+Charge_Curr=2.99;
+figure
+
+Orig_HG=X_estimate(:,2);
+plot( Orig_HG);
+ hold on;
+ plot( Resistance(1:data_length).*curr1(1:data_length).^2);
+ylabel('Heat_Generation')
+hold on;
 for j = 1:length(charge_start)
     % Determine index range for current charge phase
     if j < length(charge_start)
@@ -297,25 +303,18 @@ for j = 1:length(charge_start)
     
     % Find end of charging period
     index_end = findChargingEnd(curr1, index_pos,Charge_Curr);
-    Heat=  X_estimate( index_pos, 2);
-    time_charge=time1(index_pos)/3600;
-    plot(time_charge(index_pos(1):index_end)-time_charge(index_pos(1)),curr1(index_pos(1):index_end));
-    hold on;
+    CC_index=index_pos(1)+1:1:index_end;
+    plot(CC_index, Orig_HG(CC_index),'or');
+    HG_CC=X_estimate(CC_index,2);
+    Resistance_est(j)=mean(HG_CC(6:end))./Charge_Curr.^2;
 end
 
-% Finalize plot
-finalizePlot(ax1, ax2);
 
-fd;
+figure;
 plot(Known_Res);
 hold on;
-plot(R_estimated);
-xlabel('Cycle number')
-ylabel('Resistance')
-legend('DeltaV/DeltaI at start of charge','Temperature based Resistance')
-
-
-
+plot(Resistance_est,'--k')
+legend('True Value','MHE')
 
 
 
