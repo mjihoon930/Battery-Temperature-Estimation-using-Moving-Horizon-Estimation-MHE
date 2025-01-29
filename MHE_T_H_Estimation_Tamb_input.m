@@ -21,7 +21,7 @@ addpath('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Desktop\c
 import casadi.*
 
 %% Input Profile
-folder_path='C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\MHE_Temperature_Estimation\142268300';
+folder_path='C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\MHE_Temperature_Estimation\14226830';
 [fileName, folderPath] = uigetfile('*.mat', 'Select the mat file', folder_path);
 load(fullfile(folderPath,fileName));
 charge_start=[batteryData.chargePhases.Charge_start];
