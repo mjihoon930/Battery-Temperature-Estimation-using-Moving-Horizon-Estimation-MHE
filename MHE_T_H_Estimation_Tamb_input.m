@@ -13,24 +13,17 @@ close all
 clc
 
 %% Import CasADi Package
-%addpath('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Desktop\casadi-3.6.4-windows64-matlab2018b')
+addpath('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Desktop\casadi-3.6.4-windows64-matlab2018b')
 
 % Mac
-addpath('/Users/moonjihoon/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/Research/Code/Batttery T and Heat Estimation using MHE/casadi-3')
+% addpath('/Users/moonjihoon/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/Research/Code/Batttery T and Heat Estimation using MHE/casadi-3')
 
 import casadi.*
 
 %% Input Profile
 folder_path='/Users/moonjihoon/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/Research/Code/Batttery T and Heat Estimation using MHE\Battery-Temperature-Estimation-using-Moving-Horizon-Estimation-MHE\Data\14226830';
 [fileName, folderPath] = uigetfile('*.mat', 'Select the mat file', folder_path);
-load(fullfile(folderPath,fileName));
-for i=1:length(batteryData.chargePhases)
-start_index=batteryData.chargePhases(i).Charge_start;
-if ~isempty(start_index)
-    break;
-end
-end
-last_index=length(batteryData.Time_s);
+
 time1=batteryData.Time_s(start_index:last_index);
 curr1=batteryData.Current(start_index:last_index);
 volt1=batteryData.Voltage_V(start_index:last_index);
