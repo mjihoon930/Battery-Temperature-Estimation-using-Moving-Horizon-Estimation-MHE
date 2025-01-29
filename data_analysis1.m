@@ -169,18 +169,18 @@ set(gcf, 'Position', [100, 100, 1200, 800]);
 
 hold off;
 % %% Calling Model
-nc=2; %no_of_cycles_training
-s_i=filtered_charge_phases(10).Charge_start;
-e_i=filtered_charge_phases(nc+10).Charge_start;
-Thermal_model_batteryData.Current_A=batteryData.Current(s_i:e_i);
-Thermal_model_batteryData.Time_s=batteryData.Time_s(s_i:e_i);
-Thermal_model_batteryData.Temperature_C=batteryData.Temperature_C(s_i:e_i);
-Thermal_model_batteryData.Resistance=batteryData.Resistance(s_i:e_i);
-Thermal_model_batteryData.T_amb=batteryData.T_amb(s_i:e_i);
+% nc=2; %no_of_cycles_training
+% s_i=filtered_charge_phases(10).Charge_start;
+% e_i=filtered_charge_phases(nc+10).Charge_start;
+% Thermal_model_batteryData.Current_A=batteryData.Current(s_i:e_i);
+% Thermal_model_batteryData.Time_s=batteryData.Time_s(s_i:e_i);
+% Thermal_model_batteryData.Temperature_C=batteryData.Temperature_C(s_i:e_i);
+% Thermal_model_batteryData.Resistance=batteryData.Resistance(s_i:e_i);
+% Thermal_model_batteryData.T_amb=batteryData.T_amb(s_i:e_i);
 
 %[theta, RMSE, MAE, Sys] =Thermal_Model_with_Gradient_Descent(Thermal_model_batteryData);
 %
-[theta, RMSE, MAE, Sys] =Thermal_Model_time_Series_Data(Thermal_model_batteryData)
+% [theta, RMSE, MAE, Sys] =Thermal_Model_time_Series_Data(Thermal_model_batteryData)
 nc=5;
 for i=1
 [theta, RMSE, MAE] = Thermal_Model(filtered_charge_phases(i:i+nc));
@@ -211,7 +211,7 @@ end
 Charge_Curr=3;
 theta(1)=store_alpha(1);
 theta(2)=store_beta(1);
-[R_estimated, Known_Res] = Luenberger_Observer(theta, batteryData, Charge_Curr);
+[R_estimated] = Luenberger_Observer(theta, batteryData, Charge_Curr);
 % [Heat, R_estimated, Known_Res] = Luenberger_Observer1(store_alpha,store_beta, batteryData, Charge_Curr);
 % [Heat , R_estimated,store_alpha1, store_beta1]=Luenberger_Observer_Adaptive(theta,batteryData, Charge_Curr)
 batteryData.Estimated_Resistance=R_estimated;
@@ -219,7 +219,7 @@ batteryData.Estimated_Resistance=R_estimated;
 %%  Create the plot
 figure;
 hold on;
-plot([filtered_charge_phases.cycle_no], Known_Res, '.k', 'MarkerSize', 10)
+plot([filtered_charge_phases.cycle_no], [batteryData.chargePhases.Resistance], '.k', 'MarkerSize', 10)
 plot([filtered_charge_phases.cycle_no], R_estimated, '.r', 'MarkerSize', 10)
 legend('True Value', 'Observer based' )
 xlabel('Cycle no');

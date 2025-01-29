@@ -21,40 +21,38 @@ function [theta, RMSE, MAE, Sys4] = Thermal_Model(chargePhases,  Resistance)
     
     % Plot heat generated
     ax3 = subplot(3,1,3); hold on; box on;
-    plot(chargePhases(i).Time_s/3600, (chargePhases(i).Current_A.^2).*Resistance(i), 'linewidth', 2);
+    plot(chargePhases(i).Time_s/3600, (chargePhases(i).Current_A.^2).*chargePhases(i).Resistance, 'linewidth', 2);
     hold on;
     ylabel('Heat Generated [W]');
     
     % Transfer function setup
-    l1 = 1; l2 = 2;
+    l1 = 10; l2 = 20;
     num = [1, 0];
     den = [1, l1+l2, l1*l2];
     sys = tf(num, den);
     R_Temper = chargePhases(i).Temperature_C;
-    R_Tamb=chargePhases(i).T_amb;
+    R_Tamb=chargePhases(i).Tamb_C;
     sys2 = tf(1, den);
     
     % System response calculations
     Z1 = lsim(sys, R_Temper-R_Temper(1), chargePhases(i).Time_s); %Applied filter on left side
     S1 = (R_Tamb-R_Temper); % Difference between ambient temperature and Cell Temperature
-    S2 = Resistance(i) .* chargePhases(i).Current_A.^2; % Heat
+    S2 = chargePhases(i).Resistance.* chargePhases(i).Current_A.^2; % Heat
     SS1 = lsim(sys2, S1, chargePhases(i).Time_s); %% Applied filter on right side signal
     SS2 = lsim(sys2, S2, chargePhases(i).Time_s); %% Applied filter on right side signal
     
-    Z2=[Z2; Z1];
+    Z2=[Z2; Z1(2:end)];
 
-    Sig1=[Sig1; SS1];
-    Sig2=[Sig2; SS2];
-    
-    figure;
-plot(chargePhases(i).Time_s, Z1, 'k')
-hold on;
-plot(chargePhases(i).Time_s, R_Temper-R_Temper(1));
+    Sig1=[Sig1; SS1(2:end)];
+    Sig2=[Sig2; SS2(2:end)];
+
         clear Z1 S1 S2 SS1 SS2
     end
 
     H = [Sig1, Sig2];
-
+    isout=isoutlier(Z2);
+    Z2=Z2(~isout);
+    H=H(~isout,:);
     % Calculate m_t and PHI_t
     m_t = sqrt(1 + sum(H.^2, 2));
     PHI_t = H ./ m_t;
@@ -81,7 +79,7 @@ plot(chargePhases(i).Time_s, R_Temper-R_Temper(1));
     That_pr_ol = zeros(size(R_Temper));
     That_pr_ol(1) = R_Temper(1);
     for i = 2:length(R_Temper)
-        That_pr_ol(i) = Ad * That_pr_ol(i-1) + Bd * [R_Tamb; Resistance(k) * chargePhases(k).Current_A(i-1)^2];
+        That_pr_ol(i) = Ad * That_pr_ol(i-1) + Bd * [R_Tamb; chargePhases(k).Resistance * chargePhases(k).Current_A(i-1)^2];
     end
     
     % Calculate error metrics
