@@ -1,4 +1,4 @@
-function [R_estimated] = Luenberger_Observer(theta, batteryData, Charge_Curr)
+function [ R_estimated] = Luenberger_Observer(theta, batteryData, Charge_Curr)
 % Luenberger_Observer: Estimates heat generation and resistance using a Luenberger observer
 %
 % Inputs:
@@ -18,12 +18,12 @@ D = [0];
 Orig_sys = ss(A, B, C, D);
 
 %% Observer Design Luenberger
-% L = place(A', C', [-0.065, -0.0082]);
-% Aobs = A - L' * C;
-% Bobs = [B, L'];
-% Cobs = [1, 0];
-% Dobs = 0;
-% Obs_sys = ss(Aobs, Bobs, Cobs, Dobs);
+L = place(A', C', [-0.05, -0.22]);
+Aobs = A - L' * C;
+Bobs = [B, L'];
+Cobs = [1, 0];
+Dobs = 0;
+Obs_sys = ss(Aobs, Bobs, Cobs, Dobs);
 
 %% Observer design LQG
 
@@ -32,7 +32,7 @@ n = size(A,1);  % number of states
 m = size(C,1);  % number of outputs
 
 % Define the cost matrices
-Q = diag([1, 0.005]); % If you want to prioritize the first state more
+Q = diag([0.5, 0.005]); % If you want to prioritize the first state more
 R = 1; 
 
 % Solve the algebraic Riccati equation
@@ -55,8 +55,10 @@ Current_A = batteryData.Current;
 Voltage_V = batteryData.Voltage_V;
 time_s = batteryData.Time_s;
 Temperature_C = batteryData.Temperature_C;
-Ambient_Temp=batteryData.T_amb;
-charge_start=[batteryData.chargePhases.Charge_start];
+
+%% Charge Phase Data Extraction
+[charge_start, Ambient_Temp, Known_Res] = extractChargePhaseData(batteryData);
+
 %% Plotting Setup
 fig = figure('units', 'normalized', 'outerposition', [0 0 1 1]);
 ax1 = subplot(2, 1, 1);
@@ -98,14 +100,35 @@ for j = 1:length(charge_start)
     R_estimated(j) = mean(Resistance_est);
     
     % Plotting
-    plotResults(ax1, ax2, Time, Temp, x, Curr, batteryData.chargePhases(j).Resistance, Heat, Ind0);
+    plotResults(ax1, ax2, Time, Temp, x, Curr, Known_Res(j), Heat, Ind0);
+end
+
+% Finalize plot
+finalizePlot(ax1, ax2);
+
+fd;
+plot(Known_Res);
+hold on;
+plot(R_estimated);
+end
+
+function [charge_start, Ambient_Temp, Known_Res] = extractChargePhaseData(batteryData)
+charge_start = [];
+Ambient_Temp = [];
+Known_Res = [];
+for j = 1:length(batteryData.chargePhases)
+    if ~isempty(batteryData.chargePhases(j).Charge_start)
+        charge_start = [charge_start, batteryData.chargePhases(j).Charge_start];
+        Ambient_Temp = [Ambient_Temp, batteryData.chargePhases(j).Tamb_C];
+        Known_Res = [Known_Res, batteryData.chargePhases(j).Resistance];
+    end
 end
 end
 
 function index_end = findChargingEnd(Current_A, index_pos,Charge_Curr)
 positive_indices = find(Current_A(index_pos) < -0.99*Charge_Curr);
 if any(diff(positive_indices)>1)
-    positive_indices=positive_indices(1:find(diff(positive_indices)>1));
+    positive_indices=positive_indices(1:find(diff(positive_indices)>1))
 end
 
 if ~isempty(positive_indices)
@@ -134,4 +157,13 @@ ylabel(ax2, 'Heat Generation [W]');
 legend(ax2, 'Measured Heat Generation', 'Estimated Heat Generation', 'CC Charging Period Heat Generation');
 ylim(ax2, [-0.1, 1.9]);
 xlabel(ax2, 'Time [hr]');
+end
+
+function finalizePlot(ax1, ax2)
+set(findall(gcf,'-property','FontSize'),'FontSize',24);
+set(findall(gcf,'-property','interpreter'),'interpreter','latex')
+set(findall(gcf,'-property','ticklabelinterpreter'),'ticklabelinterpreter','latex');
+linkaxes([ax1,ax2],'x')
+xlim1 = xlim(ax2);
+xlim([floor(xlim1(1)), ceil(xlim1(end))]);
 end

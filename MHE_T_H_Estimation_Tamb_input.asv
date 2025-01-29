@@ -264,24 +264,24 @@ X_estimate = [x_ig'.*ones(N_MHE,n_states) ; X_estimate];
 %% Figure
 data_length=mheiter + N_MHE;
 figure
-subplot(311)
+ax1=subplot(311)
 plot(time1(1:data_length)/3600,curr1(1:data_length))
 ylabel('Current')
 
-subplot(312)
+ax2=subplot(312)
 plot(time1(1:data_length)/3600,Temp1(1:data_length))
 hold on
 plot(time1(1:data_length)/3600,X_estimate(:,1),'--k')
 ylabel('Temperature')
 
-subplot(313)
+ax3=subplot(313)
 
 hold on;
 plot(time1(1:data_length)/3600, Resistance(1:data_length).*curr1(1:data_length).^2)
 plot(time1(1:data_length)/3600,X_estimate(:,2),'--k')
 ylabel('Heat Generation')
 set(gcf,'Color','White')
-
+linkaxes([ax1,ax2,ax3],'x')
 %% Resistance Calculation
 [charge_start, Ambient_Temp, Known_Res] = extractChargePhaseData(batteryData);
 

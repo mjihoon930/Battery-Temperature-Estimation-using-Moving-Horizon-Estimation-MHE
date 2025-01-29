@@ -194,15 +194,15 @@ batteryData.chargePhases=filtered_charge_phases;
 %%
 folder_path='C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\MHE_Temperature_Estimation\14226830';
 % Prompt the user to select a CSV file
-[fileName1, folderPath] = uigetfile('*.csv', 'Select Impedance file', folder_path);
+[fileName, folderPath] = uigetfile('*.csv', 'Select Impedance file', folder_path);
 
 % Check if the user selected a file or canceled the operation
-if isequal(fileName1, 0)
+if isequal(fileName, 0)
     disp('User canceled the file selection.');
     return;
 else
     % Construct the full file path
-    fullFilePath = fullfile(folderPath, fileName1);
+    fullFilePath = fullfile(folderPath, fileName);
     
     % Load the CSV file into a table
     dataTable1 = readtable(fullFilePath);
@@ -225,12 +225,12 @@ legend('True Value', 'Observer based' )
 xlabel('Cycle no');
 ylabel('Resistance');
 grid on;
-ylim([0.02,0.05])
+
 % Customize the plot appearance
 set(gca, 'FontSize', 12);
 set(gcf, 'Position', [100, 100, 800, 600]);
 
-RMSE=sqrt(mean(([batteryData.chargePhases.Resistance]-R_estimated).^2));
+RMSE=sqrt(mean((Known_Res-R_estimated).^2));
 title([fileName, ' RMSE: ', num2str(RMSE)]);
 targetLocation = fullfile('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\Battery-Temperature-Estimation-using-Moving-Horizon-Estimation-MHE\Results', [fileName, '.png']);  % You can change the extension to match the desired format
 
@@ -241,16 +241,10 @@ saveas(gcf, targetLocation);
 figure;
 hold on;
 plot([filtered_charge_phases.cycle_no], R_estimated, '.r', 'MarkerSize', 10)
-plot([filtered_charge_phases.cycle_no], [batteryData.chargePhases.Resistance], '.k', 'MarkerSize', 10)
+plot([filtered_charge_phases.cycle_no], Known_Res, '.k', 'MarkerSize', 10)
 
 plot(dataTable1.cycleNumbers, dataTable1.x60__30_second,'--k');
 plot(dataTable1.cycleNumbers, dataTable1.x60__1_second,'--m');
-
-targetLocation = fullfile('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\Battery-Temperature-Estimation-using-Moving-Horizon-Estimation-MHE\Results', [fileName1, '.png']);  % You can change the extension to match the desired format
-
-% Save the figure
-saveas(gcf, targetLocation);
-
 %%
 % Assume 'myStructure' is the name of the structure you want to save
 % Assume 'fileName' already contains the desired fileName
