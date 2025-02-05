@@ -128,7 +128,7 @@ end
 function index_end = findChargingEnd(Current_A, index_pos,Charge_Curr)
 positive_indices = find(Current_A(index_pos) < -0.99*Charge_Curr);
 if any(diff(positive_indices)>1)
-    positive_indices=positive_indices(1:find(diff(positive_indices)>1))
+    positive_indices=positive_indices(1:find(diff(positive_indices)>1));
 end
 
 if ~isempty(positive_indices)

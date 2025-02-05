@@ -227,7 +227,7 @@ u_cl=Tamb;
 
 P_cov = diag([1 1]).^2;
 
-data_length =length(time1);
+data_length = length(time1);
 
 for k = 1: length(time1(1:data_length)) - (N_MHE)
 
