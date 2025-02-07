@@ -232,7 +232,7 @@ set(gcf, 'Position', [100, 100, 800, 600]);
 
 RMSE=sqrt(mean(([batteryData.chargePhases.Resistance]-R_estimated).^2));
 title([fileName, ' RMSE: ', num2str(RMSE)]);
-targetLocation = fullfile('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\Battery-Temperature-Estimation-using-Moving-Horizon-Estimation-MHE\Results', [fileName, '.png']);  % You can change the extension to match the desired format
+targetLocation = fullfile('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\Battery-Temperature-Estimation-using-Moving-Horizon-Estimation-MHE\Results', [fileName, '.fig']);  % You can change the extension to match the desired format
 
 % Save the figure
 saveas(gcf, targetLocation);
@@ -245,8 +245,14 @@ plot([filtered_charge_phases.cycle_no], [batteryData.chargePhases.Resistance], '
 
 plot(dataTable1.cycleNumbers, dataTable1.x60__30_second,'--k');
 plot(dataTable1.cycleNumbers, dataTable1.x60__1_second,'--m');
+xlabel('Cycle no');
+ylabel('Resistance');
+grid on;
+ylim([0.01,0.05]);
+title([fileName, ' RMSE: ', num2str(RMSE)]);
+legend('True Value','Observer Value', 'Impedance at 60% DOD measured afer 30 second of low current','Impedance at 60% DOD measured afer 1 second of low current' )
 
-targetLocation = fullfile('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\Battery-Temperature-Estimation-using-Moving-Horizon-Estimation-MHE\Results', [fileName1, '.png']);  % You can change the extension to match the desired format
+targetLocation = fullfile('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\Battery-Temperature-Estimation-using-Moving-Horizon-Estimation-MHE\Results', [fileName1, '.fig']);  % You can change the extension to match the desired format
 
 % Save the figure
 saveas(gcf, targetLocation);

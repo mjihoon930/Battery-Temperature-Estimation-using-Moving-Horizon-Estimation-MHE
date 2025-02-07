@@ -243,8 +243,8 @@ end
 
 X_estimate = [x_ig'.*ones(N_MHE,n_states) ; X_estimate];
 X11=X_estimate;
-X11=X11(N_MHE+1:end,:);
-X22=X11(N_MHE+1:end,:);
+% X11=X11(N_MHE+1:end,:);
+% X22=X11(N_MHE+1:end,:);
 %% Figure
 data_length=length(X11);
 figure
@@ -285,9 +285,9 @@ for j = 1:length(charge_start)
     Known_Res(j)=batteryData.chargePhases(j).Resistance;
     Heat_orig=Known_Res(j).*Current_charge.^2;
     TS_MHE_index=find(time_charge>=300,1);
-    plot(time_charge(TS_MHE_index:index_end),Heat(TS_MHE_index:end));
+    plot(time_charge(1:index_end),Heat(1:end));
     hold on;
-    plot(time_charge(TS_MHE_index:index_end),Heat_orig(TS_MHE_index:index_end),'--k');
+    plot(time_charge(1:index_end),Heat_orig(1:index_end),'--k');
     R_estimated(j)=mean(Heat(TS_MHE_index:end))/Charge_Curr^2;
     clear Heat
     clear time_charge Heat_orig
@@ -314,7 +314,45 @@ set(gcf, 'Position', [100, 100, 800, 600]);
 
 RMSE=sqrt(mean(([batteryData.chargePhases.Resistance]-R_estimated).^2));
 title([fileName, ' MHE RMSE: ', num2str(RMSE)]);
-targetLocation = fullfile('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\Battery-Temperature-Estimation-using-Moving-Horizon-Estimation-MHE\Results', [fileName, 'MHE.png']);  % You can change the extension to match the desired format
+targetLocation = fullfile('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\Battery-Temperature-Estimation-using-Moving-Horizon-Estimation-MHE\Results', [fileName, 'MHE.fig']);  % You can change the extension to match the desired format
+
+% Save the figure
+saveas(gcf, targetLocation);
+
+%% Plot with respect to experimentally measured Resistance
+%%
+folder_path='C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\MHE_Temperature_Estimation\14226830';
+% Prompt the user to select a CSV file
+[fileName1, folderPath] = uigetfile('*.csv', 'Select Impedance file', folder_path);
+
+% Check if the user selected a file or canceled the operation
+if isequal(fileName1, 0)
+    disp('User canceled the file selection.');
+    return;
+else
+    % Construct the full file path
+    fullFilePath = fullfile(folderPath, fileName1);
+    
+    % Load the CSV file into a table
+    dataTable1 = readtable(fullFilePath);
+end
+
+figure;
+hold on;
+plot([batteryData.chargePhases.cycle_no], [batteryData.chargePhases.Resistance], '.k', 'MarkerSize', 10)
+plot([batteryData.chargePhases.cycle_no], R_estimated, '.r', 'MarkerSize', 10)
+
+plot(dataTable1.cycleNumbers, dataTable1.x60__30_second,'--k');
+plot(dataTable1.cycleNumbers, dataTable1.x60__1_second,'--m');
+xlabel('Cycle no');
+ylabel('Resistance');
+grid on;
+ylim([0.01,0.05]);
+title([fileName, ' MHE RMSE: ', num2str(RMSE)]);
+
+legend('True Value','Observer Value', 'Impedance at 60% DOD measured afer 30 second of low current','Impedance at 60% DOD measured afer 1 second of low current' )
+
+targetLocation = fullfile('C:\Users\nqa5412\OneDrive - The Pennsylvania State University\Documents\Battery-Temperature-Estimation-using-Moving-Horizon-Estimation-MHE\Results', [fileName1, 'MHE.fig']);  % You can change the extension to match the desired format
 
 % Save the figure
 saveas(gcf, targetLocation);
